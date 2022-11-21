@@ -6,6 +6,9 @@ var logger = require('morgan');
 var session = require('express-session');
 var FileStore = require('session-file-store')(session);
 
+var passport = require('passport');
+var authenticate = require('./authenticate');
+
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
 var dishRouter= require('./routes/dishRouter');
@@ -42,52 +45,27 @@ app.use(session({
   store: new FileStore()
 }));
 
+app.use(passport.initialize());
+app.use(passport.session());
+
+app.use('/', indexRouter);
+app.use('/users', usersRouter);
+
 function auth(req, res, next) {
-  // console.log(req.headers);
+  console.log(req.user);
 
   //USING COOKIES
   // console.log(req.signedCookies);
 
   //USING SESSION
-  console.log(req.session);
-
-  if(!req.session.user) {  //cookies
-    var authHeader = req.headers.authorization;
-
-      if(!authHeader) {
+  
+  if(!req.user) {  //cookies
         var err = new Error('You are not authenticated!');
-
-        res.setHeader('www-Authenticate', 'Basic');
-        err.status= 401;
+        err.status= 403;
         return  next(err);
-      }
-
-      var auth = new Buffer.from(authHeader.split(' ')[1], 'base64').toString().split(':');
-      var username =auth[0];
-      var password = auth[1];
-
-      if (username === 'admin' && password ==='password') {
-        // res.session('user', 'admin', { signed:true});  //cookie
-        req.session.user = 'admin';
-        next(); // authorized
-      }
-      else{
-        var err = new Error('You are not authenticated!');
-
-        res.setHeader('www-Authenticate', 'Basic');
-        err.status= 401;
-        return next(err);
-      }
   }
   else{
-    if(req.session.user === 'admin'){  //cookies //sesson
       next();
-    }
-    else{
-      var err = new Error('You are not authenticated!');
-        err.status= 401;
-         return next(err);
-    }
   }
   
 }
@@ -97,8 +75,7 @@ app.use(auth); //authentication function
 app.use(express.static(path.join(__dirname, 'public')));
 
 
-app.use('/', indexRouter);
-app.use('/users', usersRouter);
+
 app.use('/dishes', dishRouter);
 app.use('/promotions', promoRouter);
 app.use('/leaders', leaderRouter);
